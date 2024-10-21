@@ -342,23 +342,52 @@ namespace VCX::Labs::Drawing2D {
         ImageRGB &       output,
         ImageRGB const & input,
         int              rate) {
-            std::cerr<<output.GetSizeX()<<' '<<output.GetSizeY()<<"\n";
-            std::cerr<<input.GetSizeX()<<' '<<input.GetSizeY()<<"\n";
-            std::cerr<<rate<<endl;
-            for(int i=0;i<input.GetSizeX();++i)
+            //std::cerr<<output.GetSizeX()<<' '<<output.GetSizeY()<<"\n";
+            //std::cerr<<input.GetSizeX()<<' '<<input.GetSizeY()<<"\n";
+            //std::cerr<<rate<<endl;
+            int height=output.GetSizeX(),width=output.GetSizeY();
+            vector<glm::vec3>v[height][width];
+            double t1=0,t2=0;
+            double incx=1.0*input.GetSizeX()/height;
+            double incy=1.0*input.GetSizeY()/width;
+            for(int i=0;i<output.GetSizeX();++i)
             {
-                for(int j=0;j<input.GetSizeY();++j)
+                double t3=t1+incx;t2=0;
+                for(int j=0;j<output.GetSizeY();++j)
                 {
-                    glm::vec3 color=output.At(i/rate,j/rate);
-                    glm::vec3 color2=input.At(i,j);
-                    color={
-                        color.r+color2.r/(rate*rate),
-                        color.g+color2.g/(rate*rate),
-                        color.b+color2.b/(rate*rate),
-                    };
-                    output.At(i/rate,j/rate)=color;
+                    double t4=t2+incy;
+                    for(int x=t1;x<int(t3);++x)for(int y=t2;y<int(t4);++y)
+                    {
+                        glm::vec3 color2=input.At(x,y);
+                        color2={
+                            color2.r/(rate*rate),
+                            color2.g/(rate*rate),
+                            color2.b/(rate*rate),
+                        };
+                        v[i][j].push_back(color2);
+                    }
+                    t2=t4;
+                }
+                t1=t3;
+            }
+            std::mt19937 gen(123);
+            for(int i=0;i<output.GetSizeX();++i)
+            {
+                for(int j=0;j<output.GetSizeY();++j)
+                {
+                    for(int k=0;k<rate*rate;++k)
+                    {
+                        int pos=gen()%(int)(v[i][j].size());
+                        glm::vec3 color=output.At(i,j);
+                        output.At(i,j)={
+                            color.r+v[i][j][pos].r,
+                            color.g+v[i][j][pos].g,
+                            color.b+v[i][j][pos].b,
+                        };
+                    }
                 }
             }
+
         // your code here:
     }
 
@@ -368,6 +397,18 @@ namespace VCX::Labs::Drawing2D {
         std::span<glm::vec2> points,
         float const          t) {
         // your code here:
-        return glm::vec2 {0, 0};
+        vector<glm::vec2>point;
+        for(auto x:points)point.push_back(x);
+        while((int)(point.size())>1)
+        {
+            vector<glm::vec2>point2;
+            for(int j=0;j<(int)(point.size())-1;++j)
+            {
+                auto now=(1-t)*point[j]+t*point[j+1];
+                point2.push_back(now);
+            }
+            swap(point,point2);
+        }
+        return point[0];
     }
 } // namespace VCX::Labs::Drawing2D
