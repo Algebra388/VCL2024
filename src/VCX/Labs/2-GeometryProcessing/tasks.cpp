@@ -32,9 +32,15 @@ namespace VCX::Labs::GeometryProcessing {
             for (std::size_t i = 0; i < prev_mesh.Positions.size(); ++i) {
                 // Update the currently existing vetex v from prev_mesh.Positions.
                 // Then add the updated vertex into curr_mesh.Positions.
+                // your code here:
                 auto v           = G.Vertex(i);
                 auto neighbors   = v->Neighbors();
-                // your code here:
+                int n = neighbors.size();
+                float u = 3.0 / 8.0 / n ;
+                if (n == 2) u = 3.0 / 16.0;
+                auto newv = (1 - n * u) * prev_mesh.Positions[i];
+                for (auto x : neighbors) newv += u * prev_mesh.Positions[x];
+                curr_mesh.Positions[i] = newv;
             }
             // We create an array to store indices of the newly generated vertices.
             // Note: newIndices[i][j] is the index of vertex generated on the "opposite edge" of j-th
@@ -47,6 +53,9 @@ namespace VCX::Labs::GeometryProcessing {
                 auto eTwin                                       = e->TwinEdgeOr(nullptr);
                 // eTwin stores the twin halfedge.
                 if (! eTwin) {
+                    auto x = prev_mesh.Positions[e -> From()] + prev_mesh.Positions[e -> To()];
+                    x = x / (float)2.0;
+                    curr_mesh.Positions.push_back(x);
                     // When there is no twin halfedge (so, e is a boundary edge):
                     // your code here: generate the new vertex and add it into curr_mesh.Positions.
                 } else {
@@ -56,6 +65,12 @@ namespace VCX::Labs::GeometryProcessing {
                     //     we have to record twice.
                     newIndices[G.IndexOf(eTwin->Face())][e->TwinEdge()->EdgeLabel()] = curr_mesh.Positions.size();
                     // your code here: generate the new vertex and add it into curr_mesh.Positions.
+                    auto x = prev_mesh.Positions[e -> From()] + prev_mesh.Positions[e -> To()];
+                    x = x * (float)3.0 / (float)8.0;
+                    auto y = prev_mesh.Positions[(e -> NextEdge()) -> To()] + prev_mesh.Positions[(eTwin -> NextEdge()) -> To()];
+                    y = y / (float)8.0;
+                    x = x + y;
+                    curr_mesh.Positions.push_back(x);
                 }
             }
 
@@ -74,6 +89,10 @@ namespace VCX::Labs::GeometryProcessing {
                 //     when inserting new face indices.
                 // toInsert[i][j] stores the j-th vertex index of the i-th sub-face.
                 std::uint32_t toInsert[4][3] = {
+                    {v0,e0,e2},
+                    {v1,e1,e0},
+                    {v2,e2,e1},
+                    {e0,e1,e2}
                     // your code here:
                 };
                 // Do insertion.
