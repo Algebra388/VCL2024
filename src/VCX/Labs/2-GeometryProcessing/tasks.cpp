@@ -37,10 +37,10 @@ namespace VCX::Labs::GeometryProcessing {
                 auto neighbors   = v->Neighbors();
                 int n = neighbors.size();
                 float u = 3.0 / 8.0 / n ;
-                if (n == 2) u = 3.0 / 16.0;
+                if (n == 3) u = 3.0 / 16.0;
                 auto newv = (1 - n * u) * prev_mesh.Positions[i];
                 for (auto x : neighbors) newv += u * prev_mesh.Positions[x];
-                curr_mesh.Positions[i] = newv;
+                curr_mesh.Positions.push_back(newv);
             }
             // We create an array to store indices of the newly generated vertices.
             // Note: newIndices[i][j] is the index of vertex generated on the "opposite edge" of j-th
@@ -67,7 +67,7 @@ namespace VCX::Labs::GeometryProcessing {
                     // your code here: generate the new vertex and add it into curr_mesh.Positions.
                     auto x = prev_mesh.Positions[e -> From()] + prev_mesh.Positions[e -> To()];
                     x = x * (float)3.0 / (float)8.0;
-                    auto y = prev_mesh.Positions[(e -> NextEdge()) -> To()] + prev_mesh.Positions[(eTwin -> NextEdge()) -> To()];
+                    auto y = prev_mesh.Positions[e -> OppositeVertex()] + prev_mesh.Positions[eTwin -> OppositeVertex()];
                     y = y / (float)8.0;
                     x = x + y;
                     curr_mesh.Positions.push_back(x);
@@ -83,7 +83,7 @@ namespace VCX::Labs::GeometryProcessing {
                 auto v0           = prev_mesh.Indices[i + 0U];
                 auto v1           = prev_mesh.Indices[i + 1U];
                 auto v2           = prev_mesh.Indices[i + 2U];
-                auto [m0, m1, m2] = newIndices[i / 3U];
+                auto [e0, e1, e2] = newIndices[i / 3U];
                 // Note: m0 is on the opposite edge (v1-v2) to v0.
                 // Please keep the correct indices order (consistent with order v0-v1-v2)
                 //     when inserting new face indices.
