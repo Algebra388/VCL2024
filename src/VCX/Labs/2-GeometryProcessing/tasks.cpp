@@ -83,16 +83,16 @@ namespace VCX::Labs::GeometryProcessing {
                 auto v0           = prev_mesh.Indices[i + 0U];
                 auto v1           = prev_mesh.Indices[i + 1U];
                 auto v2           = prev_mesh.Indices[i + 2U];
-                auto [e0, e1, e2] = newIndices[i / 3U];
+                auto [m0, m1, m2] = newIndices[i / 3U];
                 // Note: m0 is on the opposite edge (v1-v2) to v0.
                 // Please keep the correct indices order (consistent with order v0-v1-v2)
                 //     when inserting new face indices.
                 // toInsert[i][j] stores the j-th vertex index of the i-th sub-face.
                 std::uint32_t toInsert[4][3] = {
-                    {v0,e0,e2},
-                    {v1,e1,e0},
-                    {v2,e2,e1},
-                    {e0,e1,e2}
+                    {v0,m2,m1},
+                    {v1,m0,m2},
+                    {v2,m1,m0},
+                    {m0,m1,m2}
                     // your code here:
                 };
                 // Do insertion.
@@ -129,10 +129,41 @@ namespace VCX::Labs::GeometryProcessing {
 
         // Set boundary UVs for boundary vertices.
         // your code here: directly edit output.TexCoords
-
+        int boundary_cnt = 0;
+        for(int i = 0; i < input.Positions.size(); ++i)
+        {
+            auto v = G.Vertex(i);
+            if(!v -> OnBoundary()) continue;
+            boundary_cnt++;
+        }
+        int now_cnt = 0;
+        for(int i = 0; i < input.Positions.size(); ++i)
+        {
+            auto v = G.Vertex(i);
+            if(!v -> OnBoundary()) continue;
+            ++now_cnt;
+            float nx = input.Positions[i].x;
+            float ny = input.Positions[i].y;
+            float norm = sqrt(nx * nx + ny * ny);
+            ///round to a circle
+            output.TexCoords[i] = glm::vec2{nx / norm * 0.5 + 0.5, ny / norm * 0.5 + 0.f};
+            //printf("%f %f\n", pos.x, pos.y);
+        }
         // Solve equation via Gauss-Seidel Iterative Method.
         for (int k = 0; k < numIterations; ++k) {
-            // your code here:
+            /// calculation!!!
+            for(int i = 0; i < input.Positions.size(); ++i)
+            {
+                // your code here:
+                auto v = G.Vertex(i);
+                if(v -> OnBoundary()) continue;
+                auto neighbors = v -> Neighbors();
+                glm::vec2 acc = {0, 0};
+                for(auto x : neighbors) acc = acc + output.TexCoords[x];
+                int number = 0;
+                for(auto x : neighbors) number++;
+                output.TexCoords[i] = acc / (float)number;
+            }
         }
     }
 
@@ -288,7 +319,17 @@ namespace VCX::Labs::GeometryProcessing {
         static constexpr auto GetCotangent {
             [] (glm::vec3 vAngle, glm::vec3 v1, glm::vec3 v2) -> float {
                 // your code here:
-                return 0.0f;
+                auto vect1 = v1 - vAngle;
+                auto vect2 = v2 - vAngle;
+                float dotproduct = glm::dot(vect1, vect2);
+                float crossproduct = glm::length(glm::cross(vect1,vect2));
+                if(crossproduct == 0)return 0;
+                float cota = dotproduct / crossproduct;
+                //printf("dot = %f, cross = %f\n", dotproduct, crossproduct);
+                //printf("cota = %f\n", cota);
+                if(fabs(cota) < 1e-3) return 0;
+                cota = fabs(cota);
+                return cota;
             }
         };
 
@@ -307,8 +348,48 @@ namespace VCX::Labs::GeometryProcessing {
         prev_mesh.Positions = input.Positions;
         for (std::uint32_t iter = 0; iter < numIterations; ++iter) {
             Engine::SurfaceMesh curr_mesh = prev_mesh;
+            std::vector<glm::vec3> newv;
+            newv.resize(input.Positions.size());
+            std::vector<float> sumw;
+            sumw.resize(input.Positions.size());
+            for(auto e : G.Edges())
+            {
+                auto eTwin = e -> TwinEdgeOr(nullptr);
+                if(eTwin == nullptr) continue;
+                auto pleft = curr_mesh.Positions[(eTwin -> NextEdge()) -> To()]; 
+                auto pright = curr_mesh.Positions[(e -> PrevEdge()) -> From()];
+                auto pfrom = curr_mesh.Positions[e -> From()];
+                auto pto = curr_mesh.Positions[e -> To()];
+                auto alpha = GetCotangent(pleft,pto,pfrom);
+                auto beta = GetCotangent(pright,pto,pfrom);
+                //printf("%f %f\n",alpha,beta);
+                auto weight = alpha + beta;
+                if(useUniformWeight) weight = 1;
+                sumw[e -> From()] += weight;
+                newv[e -> From()] += weight * pto;
+            }
+            for(auto ee : G.Edges())
+            {
+                auto e = ee;
+                auto eTwin = e -> TwinEdgeOr(nullptr);
+                if(eTwin == nullptr) continue;
+                std::swap(e, eTwin);
+                auto pleft = curr_mesh.Positions[(eTwin -> NextEdge()) -> To()]; 
+                auto pright = curr_mesh.Positions[(e -> PrevEdge()) -> From()];
+                auto pfrom = curr_mesh.Positions[e -> From()];
+                auto pto = curr_mesh.Positions[e -> To()];
+                auto alpha = GetCotangent(pleft,pto,pfrom);
+                auto beta = GetCotangent(pright,pto,pfrom);
+                auto weight = alpha + beta;
+                if(useUniformWeight) weight = 1;
+                sumw[e -> From()] += weight;
+                newv[e -> From()] += weight * pto;
+            }
             for (std::size_t i = 0; i < input.Positions.size(); ++i) {
                 // your code here: curr_mesh.Positions[i] = ...
+                curr_mesh.Positions[i] = newv[i] / sumw[i] * lambda + (1 - lambda) * curr_mesh.Positions[i];
+                
+                //printf("Iteration %d,Positions[%d]=(%f,%f,%f)\n",iter,i,curr_mesh.Positions[i].x,curr_mesh.Positions[i].y,curr_mesh.Positions[i].z);
             }
             // Move curr_mesh to prev_mesh.
             prev_mesh.Swap(curr_mesh);

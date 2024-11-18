@@ -1,0 +1,1 @@
+[2024-11-18 11:44:37.004] [error] VCX::Engine::LoadSurfaceMeshOBJ("arma.obj"): not found.
