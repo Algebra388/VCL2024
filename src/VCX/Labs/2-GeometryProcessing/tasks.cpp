@@ -189,6 +189,21 @@ namespace VCX::Labs::GeometryProcessing {
             [&G, &output] (DCEL::Triangle const * f) -> glm::mat4 {
                 glm::mat4 Kp;
                 // your code here:
+                ///outer_product
+                std::vector<glm::vec3> v(3);
+                for(int i = 0; i <= 2; ++i) v[i] = output.Positions[f -> VertexIndex(i)];
+                //where p = [abcd]T represents the plane defined by the equation
+                //ax + by + cz + d = 0 where a2 + b2 + c2 = 1.
+                auto norm = glm::normalize(glm::cross(v[1] - v[0], v[2] - v[0]));
+                float d = - glm::dot(v[0], norm);
+                glm::vec4 nvec = {norm, d};
+                for(int i = 0; i < 4; ++i)
+                {
+                    for(int j = 0; j < 4; ++j)
+                    {
+                        Kp[i][j] = nvec[i] * nvec[j];
+                    }
+                }
                 return Kp;
             }
         };
@@ -208,8 +223,26 @@ namespace VCX::Labs::GeometryProcessing {
                 glm::vec3 const & p2,
                 glm::mat4 const & Q
             ) -> ContractionPair {
+                /*Compute the optimal contraction target v¯ for each valid pair
+(v1, v2 ). The error v¯T(Q1 +Q2 )v¯ of this target vertex becomes
+the cost of contracting that pair.
+*/
                 // your code here:
-                return {};
+                auto mat = Q;
+                mat[0][3] = mat[1][3] = mat[2][3] = 0;
+                mat[3][3] = 1;
+                float det = glm::determinant(mat);
+                glm::vec4 retv = {0, 0, 0, 0};
+                if (abs(det) > 1e-3) 
+                {
+                    retv = glm::inverse(mat) * glm::vec4{0, 0, 0, 1};
+                }
+                else
+                {
+                    retv = {(p1 + p2) / 2.0f, 1};
+                }
+                float cost = glm::dot(retv, Q * retv);
+                return {edge, retv, cost};
             }
         };
 
@@ -296,14 +329,37 @@ namespace VCX::Labs::GeometryProcessing {
                 //        update Q matrix of each vertex on the ring (update $Qv$).
                 //     3. Update Q matrix of vertex v1 as well (update $Qv$).
                 //     4. Update $Kf$.
+                auto new_Kp = UpdateQ(e -> Face());
+                auto old_Kp = Kf[G.IndexOf(e -> Face())];
+                auto diff = new_Kp - old_Kp;
+                auto u = e -> From(); 
+                auto v = e -> To();
+                Qv[u] += diff;
+                Qv[v] += diff;
+                Qv[v1] += new_Kp;
+                Kf[G.IndexOf(e -> Face())] = new_Kp;
             }
 
             // Finally, as the Q matrix changed, we should update the relative $ContractionPair$ in $pairs$.
             // Any pair with the Q matrix of its endpoints changed, should be remade by $MakePair$.
             // your code here:
-
+            for (auto e : G.Vertex(v1) -> Ring()) 
+            {
+                auto u = e -> From(); /// just v1
+                for (auto e1 : G.Vertex(u) -> Ring()) 
+                {
+                    auto e2 = e1 -> NextEdge();
+                    if (G.IsContractable(e2)) 
+                    {
+                        auto w = e1 -> To();
+                        auto pair = MakePair(e2, output.Positions[u], output.Positions[w], Qv[u] + Qv[w]);
+                        pairs[pair_map[G.IndexOf(e2)]].cost = pair.cost;
+                        pairs[pair_map[G.IndexOf(e2)]].targetPosition = pair.targetPosition;
+                    } 
+                    else pairs[pair_map[G.IndexOf(e2)]].edge = nullptr;
+                }
+            }
         }
-
         // In the end, we check if the result mesh is watertight and manifold.
         if (! G.DebugWatertightManifold()) {
             spdlog::warn("VCX::Labs::GeometryProcessing::SimplifyMesh(..): Result is not watertight manifold.");
@@ -406,10 +462,10 @@ namespace VCX::Labs::GeometryProcessing {
         float dist1 = sdf(p1), dist2 = sdf(p2);
         if(dist1 == dist2) return (p1 + p2) / 2.0f;
         retv = p1 + (p2 - p1) * (0 - dist1) / (dist2 - dist1);
-        printf("%f %f %f\n",p1.x,p1.y,p1.z);
+        /*printf("%f %f %f\n",p1.x,p1.y,p1.z);
         printf("%f %f %f\n",p2.x,p2.y,p2.z);
         printf("%f %f %f\n",retv.x,retv.y,retv.z);
-        printf("%f %f\n",dist1,dist2);
+        printf("%f %f\n",dist1,dist2);*/
         return retv;
     }
 
