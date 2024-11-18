@@ -400,8 +400,76 @@ namespace VCX::Labs::GeometryProcessing {
         output.Indices = input.Indices;
     }
 
+    glm::vec3 interporation(glm::vec3 p1, glm::vec3 p2, const std::function<float(const glm::vec3 &)> & sdf)
+    {
+        glm::vec3 retv = {0, 0, 0};
+        float dist1 = sdf(p1), dist2 = sdf(p2);
+        if(dist1 == dist2) return (p1 + p2) / 2.0f;
+        retv = p1 + (p2 - p1) * (0 - dist1) / (dist2 - dist1);
+        printf("%f %f %f\n",p1.x,p1.y,p1.z);
+        printf("%f %f %f\n",p2.x,p2.y,p2.z);
+        printf("%f %f %f\n",retv.x,retv.y,retv.z);
+        printf("%f %f\n",dist1,dist2);
+        return retv;
+    }
+
     /******************* 5. Marching Cubes *****************/
     void MarchingCubes(Engine::SurfaceMesh & output, const std::function<float(const glm::vec3 &)> & sdf, const glm::vec3 & grid_min, const float dx, const int n) {
-        // your code here:
+        for(int x = 0; x < n; ++x)
+        {
+            for(int y = 0; y < n; ++y)
+            {
+                for(int z = 0; z < n; ++z)
+                {
+                    int index = 0;
+                    std::vector<float> dist(8);
+                    std::vector<glm::vec3> point(8);
+                    for(int i = 0; i < 8; ++i)
+                    {
+                        point[i] = { 
+                            (x + (i & 1)) * dx,
+                            (y + ((i >> 1) & 1)) * dx,
+                            (z + (i >> 2)) * dx
+                        };
+                        point[i] += grid_min;
+                        dist[i] = sdf(point[i]);
+                        if(dist[i] >= 0) index += 1 << i;
+                    }
+                    //printf("%d\n",index);
+                    std::vector<glm::vec3> edge_point(12);
+                    int edge_state = c_EdgeStateTable[index];
+                    glm::vec3 edge_table[12][2] = {
+                        {point[0], point[1]},
+                        {point[2], point[3]},
+                        {point[4], point[5]},
+                        {point[6], point[7]},
+                        {point[0], point[2]},
+                        {point[4], point[6]},
+                        {point[1], point[3]},
+                        {point[5], point[7]},
+                        {point[0], point[4]},
+                        {point[1], point[5]},
+                        {point[2], point[6]},
+                        {point[3], point[7]},
+                    };
+                    for(int i = 0; i < 12; ++i)
+                    {
+                        if(edge_state >> i & 1) edge_point[i] = interporation(edge_table[i][0], edge_table[i][1], sdf);
+                    }
+                    for(int i = 0; i < 16; i += 3)
+                    {
+                        if (c_EdgeOrdsTable[index][i] == -1) continue;
+                        std::vector<glm::vec3> p(3);
+                        for(int j = 0; j <= 2; ++j)
+                        {
+                            p[j] = edge_point[c_EdgeOrdsTable[index][i + j]];
+                            output.Positions.push_back(p[j]);
+                        }
+                        for(int j = 1; j <= 3; ++j) output.Indices.push_back(output.Positions.size() - j);
+                        //for(int j=0;j<=2;++j)p[j]-=grid_min,p[j]/=dx,printf("%f %f %f\n",p[j][0],p[j][1],p[j][2]);
+                    }
+                }
+            }
+        }
     }
 } // namespace VCX::Labs::GeometryProcessing
