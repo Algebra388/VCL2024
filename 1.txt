@@ -1,0 +1,71 @@
+commit b0464efa5ec3b7c64674e57d0044187f34136ed6
+Author: Algebra <priorityqueue2357@gmail.com>
+Date:   Mon Nov 18 22:03:26 2024 +0800
+
+    finished
+
+commit 83c1ff689a26da6a7a26dbc4941501a780a58475
+Author: Algebra <priorityqueue2357@gmail.com>
+Date:   Mon Nov 18 17:58:39 2024 +0800
+
+    finished lab2
+
+commit 92a58671c49efd7afcca39f2967a0930ba301152
+Author: Algebra <priorityqueue2357@gmail.com>
+Date:   Mon Nov 18 17:06:28 2024 +0800
+
+    complete 4 tasks
+
+commit ce22f6b684cc8f4e32ac775c6dcb152c32708a73
+Author: Algebra <priorityqueue2357@gmail.com>
+Date:   Mon Nov 18 12:01:15 2024 +0800
+
+    version3 finish 3 tasks
+
+commit c5038f89f926a02761cd035736569d33db439673
+Author: Algebra <priorityqueue2357@gmail.com>
+Date:   Fri Nov 15 10:15:42 2024 +0800
+
+    why the first problem not solved!
+
+commit bfbdb07ce9a6e70899de6f8d498da68ff7c8e569
+Author: Algebra <priorityqueue2357@gmail.com>
+Date:   Tue Nov 12 20:59:54 2024 +0800
+
+    complete task1
+
+commit 4532d73169e4d8c9ebf8edd3deca7ae2e38698f0
+Author: Cheng Yu <1537772987@qq.com>
+Date:   Mon Oct 21 14:57:13 2024 +0800
+
+    init lab2
+
+commit cf5b3c260773d0903bcb3da293bd98f1b8c1e4a8
+Author: tnx123 <2057941907@qq.com>
+Date:   Tue Sep 24 18:17:23 2024 +0800
+
+    init lab1
+
+commit d58e001b00998ab93f7ed93bb022d6880fc97da8
+Author: Cheng Yu <1537772987@qq.com>
+Date:   Wed Sep 11 00:00:13 2024 +0800
+
+    fix bugs
+
+commit dc90f615a56a9107dbffc694a32c40686cd029ea
+Author: tnx123 <2057941907@qq.com>
+Date:   Tue Sep 10 20:16:44 2024 +0800
+
+    add tutorial pdf
+
+commit d1c707f8b9a1c723cee44aeb9a89fcb32f88bbab
+Author: tnx123 <2057941907@qq.com>
+Date:   Tue Sep 10 20:05:17 2024 +0800
+
+    lab0 init
+
+commit 686ee0dff6bdca149530115da16e8418a8e7f729
+Author: tnx123 <2057941907@qq.com>
+Date:   Tue Sep 10 19:37:53 2024 +0800
+
+    first commit
