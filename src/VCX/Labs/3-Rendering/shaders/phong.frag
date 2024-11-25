@@ -36,6 +36,10 @@ uniform sampler2D u_DiffuseMap;
 uniform sampler2D u_SpecularMap;
 uniform sampler2D u_HeightMap;
 
+//你需要实现 shaders/phong.frag 中的 shade 函数，该函数分别接收光照、光线方向（从物体表面指向光源）、
+//表面法向（指向物体外部）、
+//视角方向（从物体表面指向相机位置）、漫反射颜色、高光颜色及光泽度，计算出着色结果并输出。 
+
 vec3 Shade(vec3 lightIntensity, vec3 lightDir, vec3 normal, vec3 viewDir, vec3 diffuseColor, vec3 specularColor, float shininess) {
     // your code here:
     return vec3(0);
