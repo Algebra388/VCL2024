@@ -32,23 +32,28 @@ uniform sampler2D u_DiffuseMap;
 uniform sampler2D u_SpecularMap;
 uniform samplerCube u_ShadowCubeMap;
 
+vec3 Shade(vec3 lightIntensity, vec3 lightDir, vec3 normal, vec3 viewDir, vec3 diffuseColor, vec3 specularColor, float shininess) {
+    // your code here:
+    vec3 diffuse = diffuseColor * max(0, dot(normal, lightDir));
+    vec3 reflection = reflect(lightDir, normal);
+    float specular = pow(max(dot(reflection, -viewDir), 0.0), shininess);
+    return lightIntensity * (diffuse + specular * specularColor);
+    return vec3(0);
+}
+
 float Shadow(vec3 pos, vec3 lightPos) {
     // return 1. if point in shadow, else return 0.
     vec3 toLight = pos - lightPos;
 
     // your code here: closestDepth = ?
-    float closestDepth = 0;
+    float closestDepth =  texture(u_ShadowCubeMap, toLight).r;
+    closestDepth *= u_FarPlane;
     // your code end
 
     float curDepth = length(toLight);
     float bias = 5.;
     float shadow = curDepth - bias > closestDepth ? 1.0 : 0.0;
     return shadow;
-}
-
-vec3 Shade(vec3 lightIntensity, vec3 lightDir, vec3 normal, vec3 viewDir, vec3 diffuseColor, vec3 specularColor, float shininess) {
-    // your code here:
-    return vec3(0);
 }
 
 void main() {

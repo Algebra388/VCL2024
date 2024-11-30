@@ -29,6 +29,12 @@ uniform vec3 u_WarmColor;
 
 vec3 Shade (vec3 lightDir, vec3 normal) {
     // your code here:
+    lightDir = normalize(lightDir);
+    normal = normalize(normal);
+    float angle = max(0, dot(lightDir, normal));
+    vec3 color = (1 + angle) / 2.0 * u_CoolColor + (1 - angle) / 2.0 * u_WarmColor;
+    return color;
+
     return vec3(0);
 }
 
