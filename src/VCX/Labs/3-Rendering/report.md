@@ -1,5 +1,17 @@
 ## Task1
 
+根据 `phong` 光照和 `blinn phong` 光照的公式即可完成渲染。
+`phong` 为 $k_d(I_a + I_d \max(0 , n\dot l)) + k_s I_d \max(0, dir\dot r)^p$ 其中 $r$ 为反射光线， $dir$ 为视角方向。
+`blinn phong` 为 $k_d(I_a + I_d \max(0 , n\dot l)) + k_s I_d \max(0, n\dot h)^p$ 其中 $h$ 为半程向量。
+
+blinn phong 效果
+
+![](~/home/algebra/zlt_codes/Grade2.1/vcl2024/vcx2024/build/linux/x86_64/release/1blinnphong.png)
+
+phong 效果
+
+![](~/home/algebra/zlt_codes/Grade2.1/vcl2024/vcx2024/build/linux/x86_64/release/1phong.png)
+
 1. 顶点着色器和片段着色器的关系是什么样的？顶点着色器中的输出变量是如何传递到片段着色器当中的？
 
 顶点着色器将顶点属性处理之后传递给片段着色器，将顶点着色器的输出作为片段着色器的输入。顶点着色器处理顶点后将数据传递给片段着色器通过插值来渲染整个图形。
