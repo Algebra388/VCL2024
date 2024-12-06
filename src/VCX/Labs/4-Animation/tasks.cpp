@@ -109,8 +109,9 @@ namespace VCX::Labs::Animation {
         int const steps = 1000;
         float const ddt = dt / steps; 
         for (std::size_t s = 0; s < steps; s++) {
+            /* explicit
             std::vector<glm::vec3> forces(system.Positions.size(), glm::vec3(0));
-            for (auto const spring : system.Springs) {
+            for (auto const spring : system.Springs) { /// every spring
                 auto const p0 = spring.AdjIdx.first;
                 auto const p1 = spring.AdjIdx.second;
                 glm::vec3 const x01 = system.Positions[p1] - system.Positions[p0];
@@ -125,6 +126,91 @@ namespace VCX::Labs::Animation {
                 system.Velocities[i] += (glm::vec3(0, -system.Gravity, 0) + forces[i] / system.Mass) * ddt;
                 system.Positions[i] += system.Velocities[i] * ddt;
             }
+
+            */
+
+           /* implicit */
+           std::vector<glm::vec3> matrix_g(system.Positions.size(), glm::vec3(0));
+           std::vector<glm::mat3> matrix_hg_accumulation_dignal(system.Positions.size(), glm::mat3(0));
+           std::vector<Eigen::Triplet<float>> triples;/// for HGs
+           std::vector<glm::vec3> f_ext(system.Positions.size(), glm::vec3(0));
+           /// this is optional for parallel
+           const glm::mat3 M {system.Mass, .0, .0, .0, system.Mass, .0, .0, .0, system.Mass};
+           const glm::mat3 Indentity {1.0, .0, .0, .0, 1.0, .0, .0, .0, 1.0};
+           /// calculation of g
+           /// calculation of hg
+           for (auto const spring : system.Springs) { /// every spring
+                auto const p0 = spring.AdjIdx.first;
+                auto const p1 = spring.AdjIdx.second;
+                auto const pos0 = system.Positions[p0];
+                auto const pos1 = system.Positions[p1];
+                glm::vec3 const x01 = system.Positions[p1] - system.Positions[p0];
+                glm::vec3 const e01 = glm::normalize(x01);
+                glm::vec3 const v01 = system.Velocities[p1] - system.Velocities[p0];
+                const float length = glm::length(x01);
+                const float damping = system.Damping; /// external force
+                const float origional_length = spring.RestLength;
+                const float kij = system.Stiffness;
+                /// calculate external force
+                f_ext[p0] += system.Damping * glm::dot(v01, e01) * e01;
+                f_ext[p1] -= system.Damping * glm::dot(v01, e01) * e01;
+                ///calculate E for g
+                ///carefule +-
+                matrix_g[p0] -= kij * (length - origional_length) * e01;
+                matrix_g[p1] += kij * (length - origional_length) * e01;
+                glm::mat3 H_current {.0f};
+                H_current = kij * glm::outerProduct(x01, x01) / (length * length) +\
+                    kij * (1 - origional_length / length) * (Indentity - \
+                    glm::outerProduct(x01, x01) / (length * length));
+                matrix_hg_accumulation_dignal[p0] += H_current;
+                matrix_hg_accumulation_dignal[p1] += H_current;
+                for(int i = 0; i < 3; ++i)
+                {
+                    for(int j = 0; j < 3; ++j)
+                    {/// the elements not in diag
+                        triples.push_back({3 * p0 + i, 3 * p1 + j, - H_current[i][j]});
+                        triples.push_back({3 * p1 + i, 3 * p0 + j, - H_current[i][j]});
+                    }
+                }
+            }
+           for(std::size_t i = 0; i < system.Positions.size(); ++i)
+           {
+                // part1 : HG
+                if (system.Fixed[i]) 
+                {
+                    for (int j = 0; j < 3; ++j) 
+                    {
+                        triples.push_back({i * 3 + j, i * 3 + j, system.Mass / (ddt * ddt) });
+                    }
+                    continue;
+                }/// not move only additional
+                for(int p = 0; p < 3; ++p)
+                {
+                    for(int q = 0; q < 3; ++q)
+                    {
+                        float additional_value = 0;
+                        if(p == q) additional_value = system.Mass / ddt / ddt;
+                        triples.push_back({i * 3 + p, i * 3 + q, matrix_hg_accumulation_dignal[i][p][q] + additional_value});
+                    }
+                }
+                glm::vec3 yki = system.Positions[i] + system.Velocities[i] * ddt + ddt * \
+                ddt / system.Mass * f_ext[i] + glm::vec3(0, -system.Gravity, 0);
+                matrix_g[i] += system.Mass / ddt / ddt * (system.Positions[i] - yki);
+           }
+           auto A = CreateEigenSparseMatrix(system.Positions.size() * 3, triples);
+           auto b = glm2eigen(matrix_g);
+           auto x = ComputeSimplicialLLT(A, b);
+           std::vector<glm::vec3> delta_x = eigen2glm(x);
+           for(std::size_t i = 0; i < system.Positions.size(); ++i)
+           {
+                if (system.Fixed[i]) 
+                {
+                    system.Velocities[i] = glm::vec3(0);
+                    continue;
+                }
+                system.Velocities[i] = delta_x[i] / ddt;
+                system.Positions[i] += delta_x[i];
+           }
         }
     }
 }
