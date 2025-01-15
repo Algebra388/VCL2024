@@ -173,12 +173,13 @@ namespace VCX::Labs::Animation {
     void AdvanceMassSpringSystem(MassSpringSystem & system, float const dt) {
         // your code here: rewrite following code
         //int const steps = 1000;
-        int const steps = 10;
+        int const steps = 10; /// times of PBD
         float const ddt = dt / steps; 
+        double st = clock();
         for (std::size_t s = 0; s < steps; s++) {
-            /* explicit
-            std::vector<glm::vec3> forces(system.Positions.size(), glm::vec3(0));
-            for (auto const spring : system.Springs) { /// every spring
+            //explicit
+            std::vector<glm::vec3> temp_Positions(system.Positions.size(), glm::vec3(0));
+            /*for (auto const spring : system.Springs) { /// every spring
                 auto const p0 = spring.AdjIdx.first;
                 auto const p1 = spring.AdjIdx.second;
                 glm::vec3 const x01 = system.Positions[p1] - system.Positions[p0];
@@ -187,101 +188,58 @@ namespace VCX::Labs::Animation {
                 glm::vec3 f = (system.Stiffness * (glm::length(x01) - spring.RestLength) + system.Damping * glm::dot(v01, e01)) * e01;
                 forces[p0] += f;
                 forces[p1] -= f;
-            }
+            }*/
             for (std::size_t i = 0; i < system.Positions.size(); i++) {
-                if (system.Fixed[i]) continue;
-                system.Velocities[i] += (glm::vec3(0, -system.Gravity, 0) + forces[i] / system.Mass) * ddt;
-                system.Positions[i] += system.Velocities[i] * ddt;
-            }
+                if (system.Fixed[i]) 
+                {
+                    temp_Positions[i] = system.Positions[i];
+                    continue;
+                }
+                //system.Velocities[i] += (glm::vec3(0, -system.Gravity, 0) + forces[i] / system.Mass) * ddt;
+                temp_Positions[i] = system.Positions[i] + system.Velocities[i] * ddt;
+                temp_Positions[i] += (glm::vec3(0, -system.Gravity, 0) + system.Ext_force)* ddt * ddt / 2.0f;
+            }//external gravity
 
-            */
-           /*printf("Step %d\n", s);
+            ///Iterations
+
+            for(int iter = 0; iter < system.Iterations; ++iter)
+            {
+                for(auto const &spring : system.Springs)///for every spring
+                {
+                    auto const index1 = spring.AdjIdx.first;
+                    auto const index2 = spring.AdjIdx.second;/// the index
+                    auto const p1 = temp_Positions[index1];
+                    auto const p2 = temp_Positions[index2];
+                    auto const mass1 = system.Mass[index1];
+                    auto const mass2 = system.Mass[index2];
+                    //printf("%f %f\n", mass1, mass2);
+                    auto const length = spring.RestLength;
+                    auto delta_p1 = - (mass2 / (mass1 + mass2)) * (glm::length(p1 - p2) - length) * (p1 - p2) / glm::length(p1 - p2);
+                    auto delta_p2 = mass1 / (mass1 + mass2) * (glm::length(p1 - p2) - length) * (p1 - p2) / glm::length(p1 - p2);
+                    if(!system.Fixed[index1])temp_Positions[index1] += delta_p1;
+                    if(!system.Fixed[index2])temp_Positions[index2] += delta_p2;
+                }
+            }
+            for (std::size_t i = 0; i < system.Positions.size(); i++)
+            {
+                if(system.Fixed[i])
+                {
+                    system.Velocities[i] = glm::vec3(0);
+                    continue;
+                }
+                system.Velocities[i] = (temp_Positions[i] - system.Positions[i]) / ddt;
+                system.Positions[i] = temp_Positions[i];
+            }
+            /*
+           printf("Step %d\n", s);
            for (std::size_t i = 0; i < system.Positions.size(); i++) {
                 printf("Position[%d] = %.2lf %.2lf %.2lf\n", i, system.Positions[i].x, system.Positions[i].y, system.Positions[i].z);
                 printf("Velocities[%d] = %.2lf %.2lf %.2lf\n", i, system.Velocities[i].x, system.Velocities[i].y, system.Velocities[i].z);
                 //system.Velocities[i] 
                 //system.Positions[i] += system.Velocities[i] * ddt;
-            }*/
-            //double st = clock();
-            //while(clock() - st <= 1000);
-           /* implicit */
-           std::vector<glm::vec3> matrix_g(system.Positions.size(), glm::vec3(0));
-           std::vector<glm::mat3> matrix_hg_accumulation_dignal(system.Positions.size(), glm::mat3(0));
-           std::vector<Eigen::Triplet<float>> triples;/// for HGs
-           std::vector<glm::vec3> f_ext(system.Positions.size(), glm::vec3(0));
-           /// this is optional for parallel
-           const glm::mat3 M {system.Mass, .0, .0, .0, system.Mass, .0, .0, .0, system.Mass};
-           const glm::mat3 Indentity {1.0, .0, .0, .0, 1.0, .0, .0, .0, 1.0};
-           /// calculation of g
-           /// calculation of h
-           for (auto const spring : system.Springs) { /// every spring
-                auto const p0 = spring.AdjIdx.first;
-                auto const p1 = spring.AdjIdx.second;
-                auto const pos0 = system.Positions[p0];
-                auto const pos1 = system.Positions[p1];
-                glm::vec3 const x01 = system.Positions[p1] - system.Positions[p0];
-                glm::vec3 const e01 = glm::normalize(x01);
-                glm::vec3 const v01 = system.Velocities[p1] - system.Velocities[p0];
-                const float length = glm::length(x01);
-                const float damping = system.Damping; /// external force
-                const float origional_length = spring.RestLength;
-                const float kij = system.Stiffness;
-                /// calculate external force
-                f_ext[p0] += system.Damping * glm::dot(v01, e01) * e01;
-                f_ext[p1] -= system.Damping * glm::dot(v01, e01) * e01;
-                ///calculate E for g
-                ///carefule +-
-                matrix_g[p0] += kij * (length - origional_length) * e01;
-                matrix_g[p1] -= kij * (length - origional_length) * e01;
-                glm::mat3 H_current {.0f};
-                H_current = kij * glm::outerProduct(x01, x01) / (length * length) +\
-                   kij * (1 - origional_length / length) * (Indentity - \
-                   glm::outerProduct(x01, x01) / (length * length));
-                matrix_hg_accumulation_dignal[p0] += H_current;
-                matrix_hg_accumulation_dignal[p1] += H_current;
-                for(int i = 0; i < 3; ++i)
-                {
-                    for(int j = 0; j < 3; ++j)
-                    {/// the elements not in diag
-                        if (system.Fixed[p0] || system.Fixed[p1]) continue;
-                        triples.emplace_back(3 * p0 + i, 3 * p1 + j, - H_current[i][j]);
-                        triples.emplace_back(3 * p1 + i, 3 * p0 + j, - H_current[i][j]);
-                    }
-                }
             }
-            //puts("1");
-           for(std::size_t i = 0; i < system.Positions.size(); ++i)
-           {
-                //matrix_g[i] += ((system.Velocities[i] * system.Mass) / (dt) + glm::vec3(0, -system.Gravity, 0));
-                 glm::vec3 yki = system.Positions[i] + system.Velocities[i] * ddt + ddt * \
-                 ddt / system.Mass * (glm::vec3(0, -system.Gravity, 0) + f_ext[i]);
-                 matrix_g[i] += system.Mass / ddt / ddt * (-system.Positions[i] + yki);
-                // part1 : HG
-                for(int p = 0; p < 3; ++p)
-                {
-                    for(int q = 0; q < 3; ++q)
-                    {
-                        float additional_value = 0;
-                        if(p == q) additional_value = system.Mass / ddt / ddt;
-                        triples.emplace_back(i * 3 + p, i * 3 + q, matrix_hg_accumulation_dignal[i][p][q] + additional_value);
-                    }
-                }
-           }
-           auto A = CreateEigenSparseMatrix(system.Positions.size() * 3, triples);
-           auto b = glm2eigen(matrix_g);
-           auto x = ComputeSimplicialLLT(A, b);
-           std::vector<glm::vec3> delta_x = eigen2glm(x);
-           for(std::size_t i = 0; i < system.Positions.size(); ++i)
-           {
-                if (system.Fixed[i]) 
-                {
-                    system.Velocities[i] = glm::vec3(0);
-                    continue;
-                }
-                system.Velocities[i] = delta_x[i] / ddt;
-                system.Positions[i] += delta_x[i];
-           }
-           //puts("3");
+            */
         }
+        //while(clock() - st <= 5000);
     }
 }

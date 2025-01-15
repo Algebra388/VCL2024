@@ -35,5 +35,6 @@ namespace VCX::Labs::Animation {
         MassSpringSystem                        _massSpringSystem;
 
         void ResetSystem();
+        void Reload();
     };
 }
